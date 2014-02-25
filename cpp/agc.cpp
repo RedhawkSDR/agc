@@ -47,10 +47,7 @@ agc_i::agc_i(const char *uuid, const char *label) :
 
 agc_i::~agc_i()
 {
-	if (realAgc)
-		delete realAgc;
-	if (cmplxAgc)
-		delete cmplxAgc;
+	flushAGC(false);
 }
 
 void agc_i::propChange(const std::string& propStr)
@@ -63,6 +60,23 @@ void agc_i::initialize() throw (CF::LifeCycle::InitializeError, CORBA::SystemExc
 {
 	agc_base::initialize();
 	agcNeedsUpdate=true;
+}
+void agc_i::flushAGC(bool flushStreamID)
+{
+	//flush the state of the agc
+	if (flushStreamID)
+		streamID="";
+	agcNeedsUpdate=true;
+	if(realAgc)
+	{
+		delete realAgc;
+		realAgc=NULL;
+	}
+	if(cmplxAgc)
+	{
+		delete cmplxAgc;
+		cmplxAgc=NULL;
+	}
 }
 
 void agc_i::updateAGC(int mode)
@@ -301,7 +315,7 @@ int agc_i::serviceFunction()
 		else if(cmplxAgc)
 		{
 			cmplxIn.resize(tmp->dataBuffer.size()/2);
-			cmplxOut.resize(cmplxIn.size());;
+			cmplxOut.resize(cmplxIn.size());
 			for (unsigned int i=0; i<cmplxIn.size(); i++) {
 				cmplxIn[i] = std::complex<float>(tmp->dataBuffer[2*i], tmp->dataBuffer[2*i+1]);
 			}
@@ -319,18 +333,12 @@ int agc_i::serviceFunction()
 	{
 		//if agc is not enabled make sure the agc's are deleted
 		//and just pass the output along
-		agcNeedsUpdate=true;
-		if(realAgc)
-		{
-			delete realAgc;
-			realAgc=NULL;
-		}
-		if(cmplxAgc)
-		{
-			delete cmplxAgc;
-			cmplxAgc=NULL;
-		}
+		flushAGC(false);
 		dataFloat_out->pushPacket(tmp->dataBuffer, tmp->T, tmp->EOS, tmp->streamID);
+	}
+	if (tmp->EOS)
+	{
+		flushAGC(true);
 	}
 
 	delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK

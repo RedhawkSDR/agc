@@ -35,6 +35,7 @@ class agc_i : public agc_base
         void initialize() throw (CF::LifeCycle::InitializeError, CORBA::SystemException);
     private:
 
+        void flushAGC(bool flushStreamID);
         void updateAGC(int mode);
         void propChange(const std::string& propStr);
 
