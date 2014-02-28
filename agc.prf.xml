@@ -19,7 +19,7 @@ program.  If not, see http://www.gnu.org/licenses/.
 <!DOCTYPE properties PUBLIC "-//JTRS//DTD SCA V2.2.2 PRF//EN" "properties.dtd">
 <properties>
   <simple id="alpha" mode="readwrite" type="float">
-    <description>Exponentail averaginving coeficient.  High alpha weights current values more than previous values (less averaging)
+    <description>Exponential averaging coefficient.  High alpha weights current values more than previous values (less averaging)
 </description>
     <value>.999</value>
     <range max=".999999" min="1e-6"/>

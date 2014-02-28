@@ -306,7 +306,7 @@ int agc_i::serviceFunction()
 
 	if (tmp->inputQueueFlushed)
 	{
-		LOG_WARN(agc_i, "input Q flushed - data has been thrown on the floor.  flushing internal buffers");
+		LOG_WARN(agc_i, "input queue flushed - data has been thrown on the floor.  flushing internal buffers");
 		//flush all our processor states if the Q flushed
 		agcs.clear();
 	}

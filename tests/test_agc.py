@@ -139,7 +139,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.checkResults(input, output,threshold = .03)
     
     def testTwo(self):
-        #send data threw to initialize it - then send another batch threw with lower power to make sure the averaging is working
+        #send data through to initialize it - then send another batch through with lower power to make sure the averaging is working
         input = [random.random() for _ in xrange(1024)] 
         output = self.main(input)
         input = [random.random()/10 for _ in xrange(1024*32)] 
@@ -162,8 +162,8 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         #the two outputs should be identical as well (after the first few samples)
         self.checkAllElements(output[5:], outputTwo[5:], threshold=.5)
         
-        #check that the third output is different fron the secnod even though the input is the same
-        #due to the sate of the first run with streamA
+        #check that the third output is different fron the second even though the input is the same
+        #due to the state of the first run with streamA
         self.assertTrue(max([abs(x-y) for x,y in zip (outputTwo, outputThree)])> 10.0)
         
     
@@ -172,7 +172,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         output = self.main(input)
         self.checkResults(input, output,threshold = .03)
         
-        #make sure it is a pass threw if it is disabled        
+        #make sure it is a pass through if it is disabled
         self.setProps(enabled=False)
         input = [random.random() for _ in xrange(1024)]
         output = self.main(input)
