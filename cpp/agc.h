@@ -23,6 +23,34 @@
 #include <complex>
 #include <valarray>
 
+class AgcProcessor
+{
+public:
+	AgcProcessor();
+	~AgcProcessor();
+    void processReal(std::vector<float>& input);
+    void processComplex(std::vector<std::complex<float> >& input);
+    void setup(float avgPower, float minPower, float  maxPower, float eps, float alpha, std::vector<float>& out);
+private:
+    template<typename T>
+    void updateTheAGC(ExpAgc<float,T>*& agc, std::valarray<T>& in, std::valarray<T>&out);
+
+    std::valarray<float> realIn;
+    std::valarray<float> realOut;
+    std::valarray<std::complex<float> > cmplxIn;
+    std::valarray<std::complex<float> > cmplxOut;
+
+    ExpAgc<float,float>* realAgc;
+    ExpAgc<float,std::complex<float> >* cmplxAgc;
+    std::vector<float>* output;
+    float avgPower_;
+    float minPower_;
+    float maxPower_;
+    float eps_;
+    float alpha_;
+
+};
+
 class agc_i;
 
 class agc_i : public agc_base
@@ -32,28 +60,16 @@ class agc_i : public agc_base
         agc_i(const char *uuid, const char *label);
         ~agc_i();
         int serviceFunction();
-        void initialize() throw (CF::LifeCycle::InitializeError, CORBA::SystemException);
     private:
-
-        void flushAGC(bool flushStreamID);
-        void updateAGC(int mode);
+		typedef std::map<std::string, AgcProcessor> map_type;
         void propChange(const std::string& propStr);
+        void alphaChange(const std::string& propStr);
 
-        template<typename T>
-        void updateTheAGC(ExpAgc<float,T>*& agc, std::valarray<T>& in, std::valarray<T>&out);
+        std::map<std::string, AgcProcessor> agcs;
 
-        ExpAgc<float,float>* realAgc;
-        ExpAgc<float,std::complex<float> >* cmplxAgc;
-
-        std::valarray<float> realIn;
-        std::valarray<float> realOut;
-        std::valarray<std::complex<float> > cmplxIn;
-        std::valarray<std::complex<float> > cmplxOut;
+		boost::mutex agcLock_;
 
         std::vector<float> outputData;
-
-        bool agcNeedsUpdate;
-        std::string streamID;
 };
 
 #endif

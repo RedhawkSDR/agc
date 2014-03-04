@@ -145,6 +145,27 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         input = [random.random()/10 for _ in xrange(1024*32)] 
         output = self.main(input)
         self.checkResults(input, output,threshold=.2)
+        
+    def testMultiStream(self):
+        streamA= 'streamA'
+        streamB = 'streamB'
+        input = [random.random() for _ in xrange(1024)] 
+        output = self.main(input, streamID = streamA)
+        self.assertEqual(self.sink.sri().streamID, streamA)
+        self.checkResults(input, output,threshold = .03)
+        inputTwo = [x*1e-3 for x in input] 
+        outputTwo = self.main(inputTwo, streamID = streamB)
+        self.assertEqual(self.sink.sri().streamID, streamB)
+        
+        outputThree = self.main(inputTwo, streamID = streamA)    
+        self.checkResults(inputTwo, outputTwo,threshold = .5)
+        #the two outputs should be identical as well (after the first few samples)
+        self.checkAllElements(output[5:], outputTwo[5:], threshold=.5)
+        
+        #check that the third output is different fron the secnod even though the input is the same
+        #due to the sate of the first run with streamA
+        self.assertTrue(max([abs(x-y) for x,y in zip (outputTwo, outputThree)])> 10.0)
+        
     
     def testDisabled(self):
         input = [random.random() for _ in xrange(1024)] 
@@ -241,13 +262,13 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         self.checkResults(input, output,threshold=.1, cmplx = True)
         
         
-    def main(self,inData,cmplx = False):
+    def main(self,inData,cmplx = False, streamID="agc_stream"):
         """The main engine for all the test cases - configure the equation, push data, and get output
            As applicable
         """
         #data processing is asynchronos - so wait until the data is all processed
         count=0
-        self.src.push(inData,complexData = cmplx)
+        self.src.push(inData,complexData = cmplx, streamID=streamID)
         while True:
             out =  self.sink.getData()
             if out:
@@ -255,7 +276,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
             if count==100:
                 break
             time.sleep(.01)
-            count+=1       
+            count+=1
         return out
     
     def checkResults(self, input, output,threshold,cmplx = False):        

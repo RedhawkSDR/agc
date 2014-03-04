@@ -29,14 +29,115 @@
 
 PREPARE_LOGGING(agc_i)
 
+AgcProcessor::AgcProcessor() :
+realAgc(NULL),
+cmplxAgc(NULL),
+output(NULL)
+{
+}
+
+AgcProcessor::~AgcProcessor()
+{
+	if (cmplxAgc!=NULL)
+	{
+		delete cmplxAgc;
+		cmplxAgc = NULL;
+	}
+	if (realAgc!=NULL)
+	{
+		delete realAgc;
+		realAgc = NULL;
+	}
+}
+
+void AgcProcessor::processReal(std::vector<float>& input)
+{
+	if (cmplxAgc!=NULL)
+	{
+		delete cmplxAgc;
+		cmplxAgc = NULL;
+	}
+	if (realAgc==NULL)
+		updateTheAGC(realAgc, realIn, realOut);
+	realIn.resize(input.size());
+	for (size_t i = 0; i!=input.size(); i++)
+		realIn[i] = input[i];
+	realAgc->process();
+	output->resize(realOut.size());
+	for (size_t i = 0; i!=realOut.size(); i++)
+		(*output)[i] = realOut[i];
+}
+
+void AgcProcessor::processComplex(std::vector<std::complex<float> >& input)
+{
+	if (realAgc!=NULL)
+	{
+		delete realAgc;
+		realAgc = NULL;
+	}
+	if (cmplxAgc==NULL)
+		updateTheAGC(cmplxAgc, cmplxIn, cmplxOut);
+
+	cmplxIn.resize(input.size());
+	for (size_t i = 0; i!=input.size(); i++)
+		cmplxIn[i] = input[i];
+	cmplxAgc->process();
+	output->resize(2*cmplxOut.size());
+	for (size_t i = 0; i!=cmplxOut.size(); i++)
+	{
+		(*output)[2*i] = cmplxOut[i].real();
+		(*output)[2*i+1] = cmplxOut[i].imag();
+	}
+}
+
+void AgcProcessor::setup(float avgPower, float minPower, float  maxPower, float eps, float alpha, std::vector<float>& out)
+{
+	avgPower_ = avgPower;
+	minPower_ = minPower;
+	maxPower_ = maxPower;
+	eps_ = eps;
+	alpha_ = alpha;
+
+	output = & out;
+    if (realAgc!=NULL)
+    	updateTheAGC(realAgc, realIn, realOut);
+    else if (cmplxAgc!=NULL)
+    	updateTheAGC(cmplxAgc, cmplxIn, cmplxOut);
+}
+
+//Templatized method which applies the AGC change to the specific one which is chosen
+template<typename T>
+void AgcProcessor::updateTheAGC(ExpAgc<float,T>*& agc, std::valarray<T>& in, std::valarray<T>&out)
+{
+	if (agc!=NULL)
+	{
+		if (agc->getAlpha()!=alpha_)
+		{
+			agc->setAlpha(alpha_);
+		}
+		if(agc->getMaxPower()!=maxPower_)
+		{
+			agc->setMaxPower(maxPower_);
+		}
+		if(agc->getMinPower()!=minPower_)
+		{
+			agc->setMinPower(minPower_);
+		}
+	}
+	else
+	{
+		agc = new ExpAgc<float,T>(in, out, avgPower_, minPower_, maxPower_, eps_, alpha_);
+		//in case the alpha value was bad - set the actual one from the agc
+		agc->getAlpha();
+	}
+}
+
 agc_i::agc_i(const char *uuid, const char *label) :
-    agc_base(uuid, label),
-    realAgc(NULL),
-    cmplxAgc(NULL)
+    agc_base(uuid, label)
 {
 	//set up the listeners - when the properties change call our callback
 	std::string s = "alpha";
-	setPropertyChangeListener(s, this, &agc_i::propChange);
+	setPropertyChangeListener(s, this, &agc_i::alphaChange);
 	s = "avgPower";
 	setPropertyChangeListener(s, this, &agc_i::propChange);
 	s= "minPower";
@@ -47,86 +148,24 @@ agc_i::agc_i(const char *uuid, const char *label) :
 
 agc_i::~agc_i()
 {
-	flushAGC(false);
 }
 
 void agc_i::propChange(const std::string& propStr)
 {
 	//When a property changes - we must apply the change to the AGC
-	agcNeedsUpdate=true;
+	boost::mutex::scoped_lock lock(agcLock_);
+	for (map_type::iterator i = agcs.begin(); i!=agcs.end(); i++)
+		i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
+
 }
 
-void agc_i::initialize() throw (CF::LifeCycle::InitializeError, CORBA::SystemException)
+void agc_i::alphaChange(const std::string& propStr)
 {
-	agc_base::initialize();
-	agcNeedsUpdate=true;
-}
-void agc_i::flushAGC(bool flushStreamID)
-{
-	//flush the state of the agc
-	if (flushStreamID)
-		streamID="";
-	agcNeedsUpdate=true;
-	if(realAgc)
-	{
-		delete realAgc;
-		realAgc=NULL;
-	}
-	if(cmplxAgc)
-	{
-		delete cmplxAgc;
-		cmplxAgc=NULL;
-	}
+	//validate alpha and then run the prop change
+	alpha = validateAlpha(alpha);
+	propChange(propStr);
 }
 
-void agc_i::updateAGC(int mode)
-{
-	if (mode==0)  //real
-	{
-		if (cmplxAgc)
-		{
-			delete cmplxAgc;
-			cmplxAgc = NULL;
-		}
-		updateTheAGC(realAgc, realIn, realOut);
-	}
-	else  //complex
-	{
-		if (realAgc)
-		{
-			delete realAgc;
-			realAgc = NULL;
-		}
-		updateTheAGC(cmplxAgc, cmplxIn, cmplxOut);
-	}
-}
-
-//Templatized method which applies the AGC change to the specific one which is chosen
-template<typename T>
-void agc_i::updateTheAGC(ExpAgc<float,T>*& agc, std::valarray<T>& in, std::valarray<T>&out)
-{
-	if (agc!=NULL)
-	{
-		if (agc->getAlpha()!=alpha)
-		{
-			alpha = agc->setAlpha(alpha);
-		}
-		if(agc->getMaxPower()!=maxPower)
-		{
-			agc->setMaxPower(maxPower);
-		}
-		if(agc->getMinPower()!=minPower)
-		{
-			agc->setMinPower(minPower);
-		}
-	}
-	else
-	{
-		agc = new ExpAgc<float,T>(in, out, avgPower, minPower, maxPower, eps, alpha);
-		//in case the alpha value was bad - set the actual one from the agc
-		alpha = agc->getAlpha();
-	}
-}
 /***********************************************************************************************
 
     Basic functionality:
@@ -269,84 +308,53 @@ int agc_i::serviceFunction()
 	{
 		LOG_WARN(agc_i, "input Q flushed - data has been thrown on the floor.  flushing internal buffers");
 		//flush all our processor states if the Q flushed
-		flushAGC(false);
+		agcs.clear();
 	}
 
-	bool forceSriUpdate = false;
-    if (streamID!=tmp->streamID)
-    {
-    	if (streamID=="")
-    	{
-    		forceSriUpdate=true;
-    		streamID=tmp->streamID;
-    	}
-    	else
-    	{
-    		std::cout<<"AGC::WARNING -- pkt streamID "<<tmp->streamID<<" differs from streamID "<< streamID<<". Throw the data on the floor"<<std::endl;
-    		delete tmp; //must delete the dataTransfer object when no longer needed
-    		return NORMAL;
-    	}
-    }
+	bool updateSRI=false;
+	bool flushProcessor=tmp->EOS;
+	std::vector<float> * out=NULL;
 
-	if (tmp->sriChanged || forceSriUpdate)
 	{
-		//check for swapping from real to complex data
-		if (tmp->SRI.mode==1 and cmplxAgc==NULL)
+		boost::mutex::scoped_lock lock(agcLock_);
+		map_type::iterator i = agcs.find(tmp->streamID);
+		if (i==agcs.end())
 		{
-			agcNeedsUpdate=true;
+			updateSRI = true;
+			map_type::value_type processor(tmp->streamID, AgcProcessor());
+			i = agcs.insert(agcs.end(),processor);
+			i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
 		}
-		else if (tmp->SRI.mode==0 and realAgc==NULL)
+		if (enabled)
 		{
-			agcNeedsUpdate=true;
-		}
-		dataFloat_out->pushSRI(tmp->SRI);
-	}
-	if (enabled)
-	{
-		if (agcNeedsUpdate)
-			updateAGC(tmp->SRI.mode);
-
-		outputData.resize(tmp->dataBuffer.size());
-		if (realAgc)
-		{
-			realIn.resize(tmp->dataBuffer.size());
-			realOut.resize(tmp->dataBuffer.size());
-			for (unsigned int i=0; i<tmp->dataBuffer.size(); i++) {
-				realIn[i] = tmp->dataBuffer[i];
+			outputData.resize(tmp->dataBuffer.size());
+			if (tmp->SRI.mode==0)
+				i->second.processReal(tmp->dataBuffer);
+			else
+			{
+				std::vector<std::complex<float> >* cxVec = (std::vector<std::complex<float> >*) &(tmp->dataBuffer);
+				i->second.processComplex(*cxVec);
 			}
-			realAgc->process();
-			for (unsigned int i=0; i<tmp->dataBuffer.size(); i++) {
-				outputData[i] = realOut[i];
-			}
-		}
-		else if(cmplxAgc)
-		{
-			cmplxIn.resize(tmp->dataBuffer.size()/2);
-			cmplxOut.resize(cmplxIn.size());
-			for (unsigned int i=0; i<cmplxIn.size(); i++) {
-				cmplxIn[i] = std::complex<float>(tmp->dataBuffer[2*i], tmp->dataBuffer[2*i+1]);
-			}
-			cmplxAgc->process();
-			for (unsigned int i=0; i<cmplxOut.size(); i++) {
-				outputData[2*i]   = cmplxOut[i].real();
-				outputData[2*i+1] = cmplxOut[i].imag();
-			}
+			out = & outputData;
 		}
 		else
-			std::cout<<"THIS SHOULD NEVER HAPPEN"<<std::endl;
-		dataFloat_out->pushPacket(outputData, tmp->T, tmp->EOS, tmp->streamID);
+		{
+			//if agc is not enabled make sure the agc's are deleted
+			//and just pass the output along
+			flushProcessor=true;
+			out = & tmp->dataBuffer;
+		}
+		if (flushProcessor)
+		{
+			agcs.erase(i);
+		}
 	}
-	else
+	if (tmp->sriChanged || updateSRI)
 	{
-		//if agc is not enabled make sure the agc's are deleted
-		//and just pass the output along
-		flushAGC(false);
-		dataFloat_out->pushPacket(tmp->dataBuffer, tmp->T, tmp->EOS, tmp->streamID);
+		dataFloat_out->pushSRI(tmp->SRI);
 	}
-	if (tmp->EOS)
-	{
-		flushAGC(true);
-	}
+	dataFloat_out->pushPacket(*out, tmp->T, tmp->EOS, tmp->streamID);
+
 
 	delete tmp; // IMPORTANT: MUST RELEASE THE RECEIVED DATA BLOCK
 	return NORMAL;
