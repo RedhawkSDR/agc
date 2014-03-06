@@ -62,6 +62,7 @@ void agc_base::start() throw (CORBA::SystemException, CF::Resource::StartError)
 {
     boost::mutex::scoped_lock lock(serviceThreadLock);
     if (serviceThread == 0) {
+        dataFloat_in->unblock();
         serviceThread = new ProcessThread<agc_base>(this, 0.1);
         serviceThread->start();
     }
@@ -76,7 +77,7 @@ void agc_base::stop() throw (CORBA::SystemException, CF::Resource::StopError)
     boost::mutex::scoped_lock lock(serviceThreadLock);
     // release the child thread (if it exists)
     if (serviceThread != 0) {
-    	dataFloat_in->block();
+        dataFloat_in->block();
         if (!serviceThread->release(2)) {
             throw CF::Resource::StopError(CF::CF_NOTSET, "Processing thread did not die");
         }
@@ -127,6 +128,7 @@ void agc_base::releaseObject() throw (CORBA::SystemException, CF::LifeCycle::Rel
 
     Resource_impl::releaseObject();
 }
+
 
 void agc_base::loadProperties()
 {
@@ -185,3 +187,5 @@ void agc_base::loadProperties()
                 "configure");
 
 }
+
+
