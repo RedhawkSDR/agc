@@ -22,7 +22,7 @@ program.  If not, see http://www.gnu.org/licenses/.
   <author>
     <name>null</name>
   </author>
-  <description>Provide Automatic Gain Control to normalize power levels for real or complex signals.</description>
+  <description>Provides automatic gain control to normalize power levels for real or complex signals.</description>
   <propertyfile type="PRF">
     <localfile name="agc.prf.xml"/>
   </propertyfile>
