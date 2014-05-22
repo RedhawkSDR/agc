@@ -62,8 +62,10 @@ class agc_i : public agc_base
         int serviceFunction();
     private:
 		typedef std::map<std::string, AgcProcessor> map_type;
-        void propChange(const std::string& propStr);
-        void alphaChange(const std::string& propStr);
+		void alphaChanged(const float *oldValue, const float *newValue);
+		void avgPowerChanged(const float *oldValue, const float *newValue);
+		void maxPowerChanged(const float *oldValue, const float *newValue);
+		void minPowerChanged(const float *oldValue, const float *newValue);
 
         std::map<std::string, AgcProcessor> agcs;
 

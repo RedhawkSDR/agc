@@ -136,34 +136,47 @@ agc_i::agc_i(const char *uuid, const char *label) :
     agc_base(uuid, label)
 {
 	//set up the listeners - when the properties change call our callback
-	std::string s = "alpha";
-	setPropertyChangeListener(s, this, &agc_i::alphaChange);
-	s = "avgPower";
-	setPropertyChangeListener(s, this, &agc_i::propChange);
-	s= "minPower";
-	setPropertyChangeListener(s, this, &agc_i::propChange);
-	s= "maxPower";
-	setPropertyChangeListener(s, this, &agc_i::propChange);
+	addPropertyChangeListener("alpha", this, &agc_i::alphaChanged);
+	addPropertyChangeListener("avgPower", this, &agc_i::avgPowerChanged);
+	addPropertyChangeListener("maxPower", this, &agc_i::maxPowerChanged);
+	addPropertyChangeListener("minPower", this, &agc_i::minPowerChanged);
 }
 
 agc_i::~agc_i()
 {
 }
 
-void agc_i::propChange(const std::string& propStr)
+void agc_i::alphaChanged(const float *oldValue, const float *newValue)
 {
-	//When a property changes - we must apply the change to the AGC
+	// Validate alpha and then update the agc processors
+	alpha = validateAlpha(alpha);
 	boost::mutex::scoped_lock lock(agcLock_);
 	for (map_type::iterator i = agcs.begin(); i!=agcs.end(); i++)
 		i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
-
 }
 
-void agc_i::alphaChange(const std::string& propStr)
+void agc_i::avgPowerChanged(const float *oldValue, const float *newValue)
 {
-	//validate alpha and then run the prop change
-	alpha = validateAlpha(alpha);
-	propChange(propStr);
+	// Update the agc processors
+	boost::mutex::scoped_lock lock(agcLock_);
+	for (map_type::iterator i = agcs.begin(); i!=agcs.end(); i++)
+		i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
+}
+
+void agc_i::maxPowerChanged(const float *oldValue, const float *newValue)
+{
+	// Update the agc processors
+	boost::mutex::scoped_lock lock(agcLock_);
+	for (map_type::iterator i = agcs.begin(); i!=agcs.end(); i++)
+		i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
+}
+
+void agc_i::minPowerChanged(const float *oldValue, const float *newValue)
+{
+	// Update the agc processors
+	boost::mutex::scoped_lock lock(agcLock_);
+	for (map_type::iterator i = agcs.begin(); i!=agcs.end(); i++)
+		i->second.setup(avgPower, minPower,  maxPower, eps, alpha, outputData);
 }
 
 /***********************************************************************************************
