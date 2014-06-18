@@ -25,6 +25,7 @@ import time
 from ossie.cf import CF
 from omniORB import CORBA
 import random
+import bulkio
 
 class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
     """Test for all component implementations in fcalc"""
@@ -162,7 +163,7 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         #the two outputs should be identical as well (after the first few samples)
         self.checkAllElements(output[5:], outputTwo[5:], threshold=.5)
         
-        #check that the third output is different fron the second even though the input is the same
+        #check that the third output is different from the second even though the input is the same
         #due to the state of the first run with streamA
         self.assertTrue(max([abs(x-y) for x,y in zip (outputTwo, outputThree)])> 10.0)
         
@@ -261,6 +262,36 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         output = self.main(input, True)
         self.checkResults(input, output,threshold=.1, cmplx = True)
         
+    def testConnections(self):
+        """Test that connecting and disconnecting works while
+            components are running"""
+            
+        #Disconnect components
+        self.src.disconnect(self.comp)        
+        self.comp.disconnect(self.sink)
+        
+        #Connect components
+        self.src.connect(self.comp)        
+        self.comp.connect(self.sink,'floatIn')
+        
+        input = [random.random() for _ in xrange(1024)] 
+        output = self.main(input)
+        self.checkResults(input, output,threshold = .03)
+        
+    def testSRIChange(self):
+        """Test that the sri gets properly updated"""
+        
+        sri = bulkio.sri.create('TEST_STREAM', srate=256000, xunits=1)
+        sri.mode = 1;
+        
+        input = [random.random() for _ in xrange(1024)]
+        self.src.push(input, sampleRate = 256000, streamID = "TEST_STREAM", complexData=True)
+        time.sleep(.1)
+        sriOut = self.sink.sri()
+        
+        self.assertEqual(sri.xdelta, sriOut.xdelta)
+        self.assertEqual(sri.streamID, sriOut.streamID)
+        self.assertEqual(sri.mode, sriOut.mode)
         
     def main(self,inData,cmplx = False, streamID="agc_stream"):
         """The main engine for all the test cases - configure the equation, push data, and get output
