@@ -195,6 +195,16 @@ class ComponentTests(ossie.utils.testing.ScaComponentTestCase):
         input = [random.random() for _ in xrange(1024)] 
         output = self.main(input)
         self.checkResults(input, output,threshold = .05)
+
+    def testPowerUpdate(self):
+        input = [random.random() for _ in xrange(1024)] 
+        output = self.main(input)
+        self.checkResults(input, output,threshold = .03)
+        self.setProps(avgPower=500)
+        
+        input = [5*random.random() for _ in xrange(1024)] 
+        output = self.main(input)
+        self.checkResults(input, output,threshold = .05)
     
     def testBadAlpha(self):
         """Send in some bad alpha values and ensure it stays between 0 and 1

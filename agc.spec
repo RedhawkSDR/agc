@@ -46,8 +46,8 @@ BuildRequires:  bulkioInterfaces
 Requires:       bulkioInterfaces
 
 # Softpkg requirements
-BuildRequires:  dsp-devel >= 1.0.0
-Requires:       dsp >= 1.0.0
+BuildRequires:  dsp-devel >= 1.1.0
+Requires:       dsp >= 1.1.0
 
 %description
 Component %{name}
