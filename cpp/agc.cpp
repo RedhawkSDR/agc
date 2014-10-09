@@ -123,7 +123,7 @@ void AgcProcessor::updateTheAGC(ExpAgc<float,T>*& agc, std::valarray<T>& in, std
 		{
 			agc->setMinPower(minPower_);
 		}
-		if(agc->getAvgPower()!=minPower_)
+		if(agc->getAvgPower()!=avgPower_)
 		{
 			agc->setAvgPower(avgPower_);
 		}
