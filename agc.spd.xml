@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE softpkg PUBLIC "-//JTRS//DTD SCA V2.2.2 SPD//EN" "softpkg.dtd">
 <!-- 
 This file is protected by Copyright. Please refer to the COPYRIGHT file distributed with this 
@@ -16,7 +17,7 @@ PURPOSE.  See the GNU Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public License along with this 
 program.  If not, see http://www.gnu.org/licenses/.
 -->
-<softpkg version="1.0.1" id="DCE:f9e9867e-77f3-4448-9678-d960913fd1ee" name="agc" type="sca_compliant">
+<softpkg version="1.0.1" id="DCE:96ee9588-16d2-11e5-9d36-3417ebc4aab5" name="rh.agc" type="sca_compliant">
   <title/>
   <author>
     <name>REDHAWK</name>
