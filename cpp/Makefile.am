@@ -22,6 +22,8 @@ bin_PROGRAMS = agc
 
 xmldir = $(prefix)/dom/components/rh/agc/
 dist_xml_DATA = ../agc.scd.xml ../agc.prf.xml ../agc.spd.xml
+ACLOCAL_AMFLAGS = -I$(OSSIEHOME)/share/aclocal/ossie
+
 
 distclean-local:
 	rm -f config.*
@@ -42,7 +44,7 @@ distclean-local:
 # you wish to manually control these options.
 include $(srcdir)/Makefile.am.ide
 agc_SOURCES = $(redhawk_SOURCES_auto)
-agc_CXXFLAGS = -Wall $(PROJECTDEPS_CFLAGS) $(BOOST_CPPFLAGS) $(INTERFACEDEPS_CFLAGS)
-agc_LDADD = $(PROJECTDEPS_LIBS) $(BOOST_LDFLAGS) $(BOOST_THREAD_LIB) $(BOOST_SYSTEM_LIB) $(INTERFACEDEPS_LIBS)
-agc_LDFLAGS = -Wall
+agc_LDADD = $(SOFTPKG_LIBS) $(PROJECTDEPS_LIBS) $(BOOST_LDFLAGS) $(BOOST_THREAD_LIB) $(BOOST_REGEX_LIB) $(BOOST_SYSTEM_LIB) $(INTERFACEDEPS_LIBS) $(redhawk_LDADD_auto)
+agc_CXXFLAGS = -Wall $(SOFTPKG_CFLAGS) $(PROJECTDEPS_CFLAGS) $(BOOST_CPPFLAGS) $(INTERFACEDEPS_CFLAGS) $(redhawk_INCLUDES_auto)
+agc_LDFLAGS = -Wall $(redhawk_LDFLAGS_auto)
 
