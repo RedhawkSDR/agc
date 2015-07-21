@@ -48,8 +48,8 @@ Requires:       rh.dsp >= 2.0
 BuildRequires:  bulkioInterfaces >= 2.0
 Requires:       bulkioInterfaces >= 2.0
 
-# To help with upgrade paths
-Obsoletes:      agc <= 2.0.0
+# Allow upgrades from previous package name
+Obsoletes:      agc < 2.0.0
 
 
 %description
