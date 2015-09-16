@@ -22,10 +22,13 @@ bin_PROGRAMS = agc
 
 xmldir = $(prefix)/dom/components/rh/agc/
 dist_xml_DATA = ../agc.scd.xml ../agc.prf.xml ../agc.spd.xml
-ACLOCAL_AMFLAGS = -I$(OSSIEHOME)/share/aclocal/ossie
+ACLOCAL_AMFLAGS = -I m4 -I${OSSIEHOME}/share/aclocal/ossie
+AUTOMAKE_OPTIONS = subdir-objects
+
 
 
 distclean-local:
+	rm -rf m4
 	rm -f config.*
 	rm -rf autom4te.cache
 	rm -f acinclude.m4
