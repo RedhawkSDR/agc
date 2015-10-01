@@ -1,8 +1,8 @@
-# REDHAWK Basic Components agc
+# REDHAWK Basic Components rh.agc
  
 ## Description
 
-Contains the source and build script for the REDHAWK Basic Components agc. This componet provides automatic gain control to normalize power levels for real or complex signals.
+Contains the source and build script for the REDHAWK Basic Components rh.agc. This componet provides automatic gain control to normalize power levels for real or complex signals.
  
 ## Installation Instructions
 This asset requires the rh.dsp shared library. This must be installed in order to build and run this asset.
@@ -14,4 +14,4 @@ This work is protected by Copyright. Please refer to the [Copyright File](COPYRI
 
 ## License
 
-REDHAWK Basic Components agc is licensed under the GNU Lesser General Public License (LGPL).
+REDHAWK Basic Components rh.agc is licensed under the GNU Lesser General Public License (LGPL).
