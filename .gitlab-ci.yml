@@ -1,9 +1,9 @@
 variables:
-  test_suite: test_$CI_PROJECT_NAME.py
   rh_20_release: '2.0.8'
   rh_21_release: '2.1.3'
   dsp_version: '2.0.0'
   namespace: rh.
+  test_suite: test_$CI_PROJECT_NAME.py
 
 #Global before script, determine if this is a tag and handle rpm release field accordingly
 before_script:
@@ -11,14 +11,14 @@ before_script:
     - safe_ref=$(echo ${CI_COMMIT_REF_NAME} | tr -d /| tr '[:upper:]' '[:lower:]')
     - if [ -z "$CI_COMMIT_TAG" ]; then
         redhawk_version=${latest_version}
-        dsp_version=latest
+        dsp_version=$CI_COMMIT_REF_SLUG
         rpm_release="0.$CI_PIPELINE_ID.rh${safe_version}";
       else
         redhawk_version=${release_version}
         rpm_release="`rpm --query --queryformat "%{release}\n" --specfile ${namespace}$CI_PROJECT_NAME.spec | head -n 1 | awk -F"." "{print $1}"`.rh${safe_version}";
       fi
     - redhawk_repo=$yum_repo_url/redhawk-core-framework/$redhawk_version/$dist/$arch
-    - dsp_repo=$yum_repo_url/redhawk-sharedlibs/dsp/$dsp_version/rh${safe_version}/$dist/$arch
+    - dsp_repo=$s3_repo_url/redhawk-sharedlibs/dsp/yum/$dsp_version/rh${safe_version}/$dist/$arch
 
 .package: &package
   image: ${docker_registry}${docker_rpm_repository}docker:latest-rpm
@@ -50,14 +50,18 @@ before_script:
     - /^(\d+\.)?(\d+)?(\.\d+)$/
 
 .test: &test
-  image: ${docker_registry}redhawk/redhawk:$redhawk_version-$dist-$arch
+  image: ${docker_registry}redhawk/buildenv:${short_version}-$dist-$arch
   stage: test
   dependencies: []
   tags:
     - ca
   script:
     - . /usr/local/redhawk/python-virtualenv/bin/activate
-    - yum-builddep -y ${namespace}$CI_PROJECT_NAME.spec
+    - yum-config-manager --add-repo $redhawk_repo
+    - yum-config-manager --add-repo $dsp_repo
+    - touch /var/lib/rpm/* && yum-builddep --nogpgcheck -y ${namespace}$CI_PROJECT_NAME.spec
+    - source /etc/profile.d/redhawk.sh
+    - export SDRROOT=/var/redhawk/sdr
     - if [ -d cpp ] && [ "${dist}" == "el7" ]; then
         export CXXFLAGS='-g -Og -fprofile-arcs -ftest-coverage' V=1;
       fi
@@ -137,7 +141,9 @@ package:el7:rh2.1:
 
 test:el6:rh2.0:
   variables:
-    redhawk_version: 2.0-nightly
+    latest_version: 2.0-nightly
+    release_version: $rh_20_release
+    short_version: '2.0'
     dist: el6
     arch: x86_64
   <<: *test
@@ -146,102 +152,48 @@ test:el6:rh2.0:
 
 test:el6-i386:rh2.0:
   variables:
-    redhawk_version: 2.0-nightly
+    latest_version: 2.0-nightly
+    release_version: $rh_20_release
+    short_version: '2.0'
     dist: el6
     arch: i686
   <<: *test
-  only:
-    - branches
 
 test:el7:rh2.0:
   variables:
-    redhawk_version: 2.0-nightly
+    latest_version: 2.0-nightly
+    release_version: $rh_20_release
+    short_version: '2.0'
     dist: el7
     arch: x86_64
   <<: *test
-  only:
-    - branches
 
 test:el6:rh2.1:
   variables:
-    redhawk_version: 2.1-nightly
+    latest_version: 2.1-nightly
+    release_version: $rh_21_release
+    short_version: '2.1'
     dist: el6
     arch: x86_64
   <<: *test
-  only:
-    - branches
 
 test:el6-i386:rh2.1:
   variables:
-    redhawk_version: 2.1-nightly
+    latest_version: 2.1-nightly
+    release_version: $rh_21_release
+    short_version: '2.1'
     dist: el6
     arch: i686
   <<: *test
-  only:
-    - branches
 
 test:el7:rh2.1:
   variables:
-    redhawk_version: 2.1-nightly
+    latest_version: 2.1-nightly
+    release_version: $rh_21_release
+    short_version: '2.1'
     dist: el7
     arch: x86_64
   <<: *test
-  only:
-    - branches
-
-test:release:el6:rh2.0:
-  variables:
-    redhawk_version: $rh_20_release
-    dist: el6
-    arch: x86_64
-  <<: *test
-  only:
-    - tags
-
-test:release:el6-i386:rh2.0:
-  variables:
-    redhawk_version: $rh_20_release
-    dist: el6
-    arch: i686
-  <<: *test
-  only:
-    - tags
-
-test:release:el7:rh2.0:
-  variables:
-    redhawk_version: $rh_20_release
-    dist: el7
-    arch: x86_64
-  <<: *test
-  only:
-    - tags
-
-test:release:el6:rh2.1:
-  variables:
-    redhawk_version: $rh_21_release
-    dist: el6
-    arch: x86_64
-  <<: *test
-  only:
-    - tags
-
-test:release:el6-i386:rh2.1:
-  variables:
-    redhawk_version: $rh_21_release
-    dist: el6
-    arch: i686
-  <<: *test
-  only:
-    - tags
-
-test:release:el7:rh2.1:
-  variables:
-    redhawk_version: $rh_21_release
-    dist: el7
-    arch: x86_64
-  <<: *test
-  only:
-    - tags
 
 deploy:
   image: ${docker_registry}centos:7
@@ -257,3 +209,71 @@ deploy:
     - master
     - /^.*-external$/
     - /^(\d+\.)?(\d+)?(\.\d+)$/
+
+.s3: &s3
+  image: ${docker_registry}utils/s3cmd:el6-createrepo
+  stage: deploy
+  tags:
+    - s3
+  script:
+    - /usr/bin/s3cmd sync s3://$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/yum/$CI_COMMIT_REF_SLUG/rh${short_version}/$dist/$arch .
+    - mkdir -p $arch
+    - for file in `find output -name *.rpm`; do
+        cp $file $arch;
+      done
+    - repomanage --keep=2 --old $arch| xargs rm -f; createrepo --update $arch
+    - /usr/bin/s3cmd sync -F -v --delete-removed $arch s3://$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/yum/$CI_COMMIT_REF_SLUG/rh${short_version}/$dist/  && s3cmd setacl -v s3://$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/yum/$CI_COMMIT_REF_SLUG/rh${short_version}/$dist --acl-public --recursive || true
+
+deploy-el7-2.1:
+  variables:
+    dist: el7
+    arch: x86_64
+    short_version: '2.1'
+  dependencies:
+    - package:el7:rh2.1
+  <<: *s3
+
+deploy-el7-2.0:
+  variables:
+    dist: el7
+    arch: x86_64
+    short_version: '2.0'
+  dependencies:
+    - package:el7:rh2.0
+  <<: *s3
+
+deploy-el6-2.1:
+  variables:
+    dist: el6
+    arch: x86_64
+    short_version: '2.1'
+  dependencies:
+    - package:el6:rh2.1
+  <<: *s3
+
+deploy-el6-2.0:
+  variables:
+    dist: el6
+    arch: x86_64
+    short_version: '2.0'
+  dependencies:
+    - package:el6:rh2.0
+  <<: *s3
+
+deploy-el6-i386-2.1:
+  variables:
+    dist: el6
+    arch: i686
+    short_version: '2.1'
+  dependencies:
+    - package:el6-i386:rh2.1
+  <<: *s3
+
+deploy-el6-i386-2.0:
+  variables:
+    dist: el6
+    arch: i686
+    short_version: '2.0'
+  dependencies:
+    - package:el6-i386:rh2.0
+  <<: *s3
